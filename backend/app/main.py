@@ -9,8 +9,13 @@ from .db import engine
 from .routers import auth, transactions, resources, analytics
 
 app=FastAPI(title="PennyPilot API",version="1.0.0",description="Decimal-based, user-isolated personal finance API. Money is serialized as strings.")
-app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in settings.frontend_origins.split(",")],allow_credentials=False,allow_methods=["GET","POST","PUT","DELETE","OPTIONS"],allow_headers=["Authorization","Content-Type"])
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 @app.middleware("http")
 async def security_headers(request:Request,call_next):
     response=await call_next(request)
