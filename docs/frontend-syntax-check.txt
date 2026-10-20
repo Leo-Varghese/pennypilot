@@ -1,0 +1,2 @@
+11 TypeScript files parsed; 0 syntax errors. Not a full typecheck/build.
+

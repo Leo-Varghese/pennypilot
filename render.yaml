@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: pennypilot-api
+    runtime: python
+    region: singapore
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /ready
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.15
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pennypilot-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SESSION_HOURS
+        value: 12
+      - key: FRONTEND_ORIGINS
+        sync: false
+
+databases:
+  - name: pennypilot-db
+    region: singapore
+    plan: basic-256mb
+    databaseName: pennypilot
+    user: pennypilot
+    ipAllowList: []

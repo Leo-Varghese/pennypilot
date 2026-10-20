@@ -1,0 +1,30 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+# Dependencies and generated output
+node_modules/
+.next/
+out/
+.vercel/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.tsbuildinfo
+*.db
+*.sqlite*
+uploads/
+receipts/
+*.log
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,6 @@
+python -m alembic upgrade head
+Exit: 0
+
+python -m alembic check
+Exit: 0
+No new upgrade operations detected.

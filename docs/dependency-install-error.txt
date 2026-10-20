@@ -1,0 +1,3 @@
+npm error code E503
+npm error 503 Service Unavailable - GET https://packagefeedproxy.microsoft.io/npm/get-nonce
+npm error A complete log of this run can be found in: /home/oai/.npm/_logs/2026-10-20T06_23_10_419Z-debug-0.log
