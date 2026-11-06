@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from .config import settings
 from .db import engine
-from .routers import auth, transactions, resources, analytics
+from .routers import auth, transactions, resources, analytics, ai
 
 app=FastAPI(title="PennyPilot API",version="1.0.0",description="Decimal-based, user-isolated personal finance API. Money is serialized as strings.")
 app.add_middleware(
@@ -45,4 +45,4 @@ def ready():
         return {"status":"ready"}
     except Exception: return JSONResponse({"status":"not_ready"},status_code=503)
 
-for router in [auth.router,transactions.router,resources.router,analytics.router]: app.include_router(router,prefix="/api/v1")
+for router in [auth.router,transactions.router,resources.router,analytics.router,ai.router]: app.include_router(router,prefix="/api/v1")
