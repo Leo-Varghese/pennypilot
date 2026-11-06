@@ -3,3 +3,38 @@
 
 /* PennyPilot local AI Coach */
 .ppai-launch{position:fixed;right:22px;bottom:22px;z-index:25;background:var(--green);border-color:var(--green);color:#fff;font-weight:700;box-shadow:0 12px 35px #0c7a6747}.ppai-launch:hover{background:#075f51}.ppai-shade{position:fixed;inset:0;z-index:50;display:flex;justify-content:flex-end;background:#0b28218c}.ppai-panel{width:min(520px,100%);height:100%;display:flex;flex-direction:column;background:var(--bg);box-shadow:-20px 0 70px #0003}.ppai-head{display:flex;justify-content:space-between;gap:16px;padding:20px;background:#fff;border-bottom:1px solid var(--line)}.ppai-head h2{display:flex;align-items:center;gap:8px;color:var(--green);margin:0}.ppai-head p{font-size:12px;color:var(--muted);margin:4px 0 0}.ppai-safe,.ppai-load{margin:14px 18px 0;padding:12px;border-radius:10px}.ppai-safe{display:flex;gap:8px;align-items:center;background:var(--pale);color:var(--green);font-size:12px}.ppai-load{display:grid;gap:8px;background:#fff;border:1px solid var(--line)}.ppai-quick{display:flex;gap:8px;padding:14px 18px;overflow-x:auto}.ppai-quick button{white-space:nowrap;padding:8px 10px;min-height:36px;font-size:11px}.ppai-chat{flex:1;overflow:auto;padding:0 18px 18px}.ppai-msg{max-width:90%;margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff}.ppai-msg.user{margin-left:auto;background:var(--pale)}.ppai-msg b{display:block;color:var(--green);font-size:11px;margin-bottom:5px}.ppai-msg p{white-space:pre-wrap;margin:0}.ppai-thinking{display:flex;gap:8px;align-items:center;color:var(--muted)}.ppai-form{padding:14px 18px;background:#fff;border-top:1px solid var(--line)}.ppai-form label{display:block;font-size:12px;font-weight:700;margin-bottom:7px}.ppai-form>div{display:flex;align-items:flex-end;gap:8px}.ppai-form textarea{flex:1;min-height:64px;max-height:120px;resize:vertical;padding:10px;border:1px solid var(--line);border-radius:9px;font:inherit}.ppai-form button{width:44px;min-width:44px;height:44px;padding:0}.ppai-panel>footer{padding:3px 18px 13px;background:#fff;color:var(--muted);font-size:10px}.ppai-spin{animation:ppai-spin 1s linear infinite}@keyframes ppai-spin{to{transform:rotate(360deg)}}@media(max-width:600px){.ppai-launch{right:14px;bottom:14px}.ppai-panel{width:100%}}@media print{.ppai-launch,.ppai-shade{display:none!important}}
+
+/* PennyPilot login notices */
+.pp-login-notice {
+  display: grid;
+  gap: 3px;
+  margin: 18px 0 8px;
+  padding: 12px 14px;
+  border: 1px solid #cfe3d7;
+  border-radius: 10px;
+  background: #f1f8f3;
+  color: #345f52;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pp-login-notice strong,
+.pp-built-free strong {
+  color: var(--green);
+}
+
+.pp-built-free {
+  display: grid;
+  gap: 4px;
+  max-width: 420px;
+  margin-top: 16px;
+  color: #47665b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 800px) {
+  .pp-built-free {
+    margin-top: 12px;
+  }
+}
