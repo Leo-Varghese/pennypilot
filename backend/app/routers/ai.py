@@ -90,7 +90,8 @@ async def ai_coach(data: AIRequest, user=Depends(current_user)):
             {"role": "user", "content": f"Aggregated PennyPilot summary:\n{encoded}\n\nQuestion: {data.question}"},
         ],
         "temperature": 0.2,
-        "max_completion_tokens": 400,
+        "max_completion_tokens": 800,
+        "reasoning_format": "hidden",
         "n": 1,
     }
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
