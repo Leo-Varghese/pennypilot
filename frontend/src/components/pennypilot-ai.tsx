@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Bot, LoaderCircle, MessageCircle, Send, ShieldCheck, X } from "lucide-react";
 import type { Dashboard } from "@/lib/types";
 import { request } from "@/lib/api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type AIResponse = { answer: string; remaining_this_hour: number; model: string };
@@ -42,7 +44,7 @@ export function PennyPilotAI({ data }: { data: Dashboard | null }) {
       <header className="ppai-head"><div><h2><Bot size={21}/> PennyPilot AI Coach</h2><p>Fast, read-only financial explanation assistant</p></div><button type="button" className="icon" aria-label="Close AI Coach" onClick={()=>setOpen(false)}><X size={20}/></button></header>
       <div className="ppai-safe"><ShieldCheck size={17}/> Only a limited aggregated summary is sent for this response. Credentials, receipts, notes, and raw transactions are excluded.</div>
       <div className="ppai-quick"><button type="button" onClick={()=>void ask("Summarize the selected period and comparison period.")}>Summarize</button><button type="button" onClick={()=>void ask("Which categories increased and what do the records show?")}>Spending changes</button><button type="button" onClick={()=>void ask("Which budgets need attention?")}>Budget warnings</button></div>
-      <div className="ppai-chat" aria-live="polite">{messages.map((m,i)=><article key={i} className={`ppai-msg ${m.role}`}><b>{m.role==="assistant"?"PennyPilot AI":"You"}</b><p>{m.content}</p></article>)}{thinking&&<p className="ppai-thinking"><LoaderCircle className="ppai-spin" size={16}/> Analysing recorded aggregates...</p>}</div>
+      <div className="ppai-chat" aria-live="polite">{messages.map((m,i)=><article key={i} className={`ppai-msg ${m.role}`}><b>{m.role==="assistant"?"PennyPilot AI":"You"}</b><div className="ppai-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown></div></article>)}{thinking&&<p className="ppai-thinking"><LoaderCircle className="ppai-spin" size={16}/> Analysing recorded aggregates...</p>}</div>
       {remaining!==null&&<small className="ppai-remaining">{remaining} AI questions remaining in this application hour.</small>}
       {error&&<p className="error" role="alert">{error}</p>}
       <form className="ppai-form" onSubmit={e=>{e.preventDefault();void ask();}}><label htmlFor="ppai-q">Ask about this period</label><div><textarea id="ppai-q" maxLength={500} value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Where did I spend the most?"/><button className="primary" disabled={!question.trim()||thinking} aria-label="Send"><Send size={18}/></button></div></form>
