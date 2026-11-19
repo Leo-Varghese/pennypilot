@@ -35,12 +35,17 @@ export function SolutionOverview(){
 
     <section className="card solution-section">
       <div><p className="eyebrow">SOLUTION ARCHITECTURE</p><h2>From interface to controlled intelligence</h2></div>
-      <div className="solution-architecture" role="img" aria-label="PennyPilot solution architecture">
-        <div><b>User</b><span>Browser</span></div><i>â†“</i>
-        <div><b>Next.js + TypeScript</b><span>Vercel frontend</span></div><i>â†“ HTTPS</i>
-        <div><b>FastAPI</b><span>Render API, authentication, financial rules</span></div>
-        <div className="solution-branches"><span>â†™</span><span>â†˜</span></div>
-        <div className="solution-pair"><div><b>PostgreSQL</b><span>Neon persistence and integrity</span></div><div><b>GroqCloud</b><span>Limited aggregated context only</span></div></div>
+      <div className="solution-architecture simple-architecture" role="group" aria-label="PennyPilot solution architecture">
+        <div className="simple-architecture-box"><b>1. User</b><span>Uses PennyPilot in a web browser</span></div>
+        <div className="simple-architecture-label">Website runs on</div>
+        <div className="simple-architecture-box"><b>2. Vercel</b><span>Hosts the Next.js and TypeScript website</span></div>
+        <div className="simple-architecture-label">Website sends secure requests to</div>
+        <div className="simple-architecture-box"><b>3. Render</b><span>Runs FastAPI, login, financial rules, and imports</span></div>
+        <div className="simple-architecture-label">Backend connects to</div>
+        <div className="simple-architecture-grid">
+          <div className="simple-architecture-box"><b>4. Neon PostgreSQL</b><span>Stores accounts, transactions, budgets, and goals</span></div>
+          <div className="simple-architecture-box"><b>5. GroqCloud AI</b><span>Explains limited financial summaries in read-only mode</span></div>
+        </div>
       </div>
       <p className="muted small">Current architecture is a cost-conscious MVP using free-tier allowances. Capacity, availability, backups, and pricing must be reassessed before production scaling.</p>
     </section>
