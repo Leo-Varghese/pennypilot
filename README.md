@@ -411,3 +411,16 @@ PennyPilot was developed as a learning and portfolio project using modern open-s
 ## License
 
 This repository currently has no explicit open-source licence. Unless a licence is added, all rights are reserved by the project author. Third-party libraries remain subject to their respective licences.
+
+## Free, Controlled Maintenance
+
+PennyPilot uses a zero-cost, human-reviewed maintenance workflow:
+
+- **GitHub Dependabot** checks npm, Python, and GitHub Actions dependencies and opens pull requests.
+- **GitHub Actions** verifies proposed changes through builds, tests, and migration checks.
+- **AI-assisted development tools** may help explain or repair a pull request within available free or student-plan limits.
+- **Human approval remains mandatory** before a change reaches `main` and triggers Vercel or Render deployment.
+- Major framework upgrades, database migrations, authentication changes, and financial-calculation changes are never auto-merged.
+- No paid maintenance agent, paid fallback, or production administrator credential is required.
+
+This is controlled automation, not an unrestricted self-modifying website. See [the maintenance policy](docs/MAINTENANCE.md) for the update and safety rules.
