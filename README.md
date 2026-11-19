@@ -408,6 +408,19 @@ Built as my first full-stack project and portfolio milestone.
 
 PennyPilot was developed as a learning and portfolio project using modern open-source technologies and free cloud-service tiers. AI-assisted development tools were used during planning, implementation, debugging, documentation, and refinement, while the project architecture, deployment, testing, and iterative decisions were carried out as part of the learning process.
 
+
+## Connect with the Developer
+
+**Leo Varghese**  
+B.Tech Computer Science and Engineering  
+Manipal University Jaipur  
+Class of 2030
+
+- [GitHub Profile](https://github.com/Leo-Varghese)
+- [LinkedIn Profile](https://www.linkedin.com/in/leo-varghese-in/)
+- [PennyPilot Live Website](https://pennypilot-swart.vercel.app/)
+
+PennyPilot is my first complete full-stack project and a practical demonstration of cloud deployment, financial data modelling, responsible AI integration, automated testing, and solution documentation.
 ## License
 
 This repository currently has no explicit open-source licence. Unless a licence is added, all rights are reserved by the project author. Third-party libraries remain subject to their respective licences.
