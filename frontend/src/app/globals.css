@@ -123,3 +123,60 @@
     min-width: 520px;
   }
 }
+/* PennyPilot transaction suggestions */
+.pp-tx-merchant {
+  position: relative;
+  min-width: 0;
+}
+
+.pp-tx-suggestions {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% - 8px);
+  left: 0;
+  right: 0;
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 14px 35px rgba(20, 55, 45, 0.16);
+}
+
+.pp-tx-suggestions > small {
+  padding: 8px;
+}
+
+.pp-tx-suggestions button {
+  width: 100%;
+  justify-content: space-between;
+  padding: 9px 10px;
+  border: 0;
+  text-align: left;
+}
+
+.pp-tx-suggestions button span:first-child {
+  min-width: 0;
+}
+
+.pp-tx-suggestions strong,
+.pp-tx-suggestions small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-tx-suggestions button > span:last-child {
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 800px) {
+  .pp-tx-suggestions {
+    position: static;
+    margin-top: -8px;
+  }
+}

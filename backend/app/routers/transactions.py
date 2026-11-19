@@ -55,6 +55,53 @@ def bulk(data:BulkIn,user=Depends(current_user),db=Depends(get_db)):
     for tx in rows: tx.category_id=data.category_id
     db.commit(); return {"updated":len(rows)}
 
+@router.get("/transactions/suggestions")
+def transaction_suggestions(q:str="",limit:int=Query(5,ge=1,le=8),user=Depends(current_user),db=Depends(get_db)):
+    """Suggest previously used transaction details from this user's own records only."""
+    query=q.strip()
+    if len(query)<2:
+        return {"items":[]}
+    escaped=query.replace("%","\\%").replace("_","\\_")
+    rows=db.scalars(
+        select(Transaction)
+        .where(
+            Transaction.user_id==user.id,
+            Transaction.kind!="transfer",
+            Transaction.merchant.ilike(f"%{escaped}%",escape="\\"),
+        )
+        .order_by(Transaction.occurred_at.desc())
+        .limit(200)
+    ).all()
+    grouped={}
+    for tx in rows:
+        key=tx.merchant.strip().casefold()
+        if not key:
+            continue
+        item=grouped.get(key)
+        if item is None:
+            grouped[key]={
+                "merchant":tx.merchant.strip(),
+                "category_id":tx.category_id,
+                "payment_method":tx.payment_method,
+                "purpose":tx.purpose,
+                "kind":tx.kind,
+                "uses":1,
+                "last_used":tx.occurred_at,
+            }
+        else:
+            item["uses"]+=1
+    ranked=sorted(
+        grouped.values(),
+        key=lambda item:(
+            0 if item["merchant"].casefold().startswith(query.casefold()) else 1,
+            -item["uses"],
+            -item["last_used"].timestamp(),
+        ),
+    )[:limit]
+    for item in ranked:
+        item["last_used"]=item["last_used"].isoformat()
+    return {"items":ranked}
+
 @router.get("/transactions/{id}")
 def detail(id:str,user=Depends(current_user),db=Depends(get_db)): return tx_out(db,owned(db,Transaction,id,user.id))
 
