@@ -28,7 +28,8 @@ Never request passwords, tokens, account/card numbers, UPI PINs, receipts, or cr
 Do not give personalized investment, tax, legal, lending, or credit instructions.
 Mention the supplied comparison period when discussing changes.
 Transfers, adjustments, goal allocations, and projected bills are not expenses.
-Keep the answer concise, practical, and in Indian English. Say explicitly when the supplied data is insufficient."""
+Keep the answer concise, practical, and in Indian English. Say explicitly when the supplied data is insufficient.
+When the question says till date, all time, ever, or from the beginning, use only lifetime_context. State its first_recorded_at and last_recorded_at coverage. Never substitute the selected-period figures."""
 
 BLOCKED_KEYS = {
     "email", "password", "password_hash", "token", "access_token", "authorization",

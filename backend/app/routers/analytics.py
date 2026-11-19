@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from ..db import get_db
 from ..models import *
 from ..security import current_user
@@ -63,6 +63,60 @@ def dashboard(start:date,end:date,currency:str="INR",user=Depends(current_user),
                 due+=relativedelta(months={"monthly":1,"quarterly":3,"yearly":12}[rule.frequency]); due=due.replace(day=min(rule.anchor_day,monthrange(due.year,due.month)[1]))
     allocated=sum((b["allocated"] for b in budgetrows),ZERO)
     return serialize({"currency":currency,"timezone":pref.timezone,"period":{"start":start,"end":end},"comparison_period":{"start":previous_start,"end":previous_end},"totals":summary,"previous":previous,"accounts":current_balances,"budgets":budgetrows,"budget_remaining":sum((b["remaining"] for b in budgetrows),ZERO),"goals":goalrows,"upcoming":upcoming,"projection":projected,"net_worth":net_worth(db,user.id,currency),"net_worth_history":[{"date":s.date,"net_worth":s.assets-s.liabilities} for s in snapshots],"series":series,"categories":catrows,"merchants":[{"name":k,"amount":v} for k,v in sorted(merchant.items(),key=lambda x:x[1],reverse=True)],"income_sources":[{"name":k,"amount":v} for k,v in sources.items()],"weekdays":[{"name":k,"amount":weekdays[k]} for k in ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]],"category_time":[{"date":d,"category_id":c or "uncategorized","name":cats[c].name if c in cats else "Uncategorized","amount":v} for (d,c),v in sorted(category_time.items(),key=lambda x:x[0][0])],"zero_based":{"enabled":pref.zero_based,"period_income":summary["income"],"allocated":allocated,"unassigned_income":summary["income"]-allocated},"insights":[{"category":c["name"],"increase":c["change"]} for c in catrows if c["change"]>0],"definitions":{"actual_savings":"Recorded income minus expenses net of refunds. Not a bank-balance change. Transfers, adjustments, goal allocations and projections excluded.","budget_remaining":"Sum of full-period remaining budgets overlapping this filter. Avoid overlapping budgets to prevent duplicate allocations.","net_worth":"Current account balances plus separately configured assets minus liabilities. Do not duplicate account values in holdings."}})
+
+@router.get("/analytics/lifetime-context")
+def lifetime_context(currency:str="INR",user=Depends(current_user),db=Depends(get_db)):
+    """All-time aggregates for AI questions such as 'food spending till date'."""
+    spending_amount=case(
+        (Transaction.kind=="expense",Transaction.amount),
+        (Transaction.kind=="refund",-Transaction.amount),
+        else_=0,
+    )
+    rows=db.execute(
+        select(
+            Transaction.category_id,
+            Category.name,
+            func.coalesce(func.sum(spending_amount),0).label("net_spending"),
+            func.coalesce(func.sum(case((Transaction.kind=="expense",Transaction.amount),else_=0)),0).label("gross_expenses"),
+            func.coalesce(func.sum(case((Transaction.kind=="refund",Transaction.amount),else_=0)),0).label("refunds"),
+            func.count(Transaction.id).label("record_count"),
+            func.min(Transaction.occurred_at).label("first_recorded_at"),
+            func.max(Transaction.occurred_at).label("last_recorded_at"),
+        )
+        .select_from(Transaction)
+        .outerjoin(Category,Category.id==Transaction.category_id)
+        .where(
+            Transaction.user_id==user.id,
+            Transaction.currency==currency,
+            Transaction.kind.in_(["expense","refund"]),
+        )
+        .group_by(Transaction.category_id,Category.name)
+        .order_by(func.sum(spending_amount).desc())
+    ).all()
+    category_rows=[{
+        "category_id":category_id or "uncategorized",
+        "category":name or "Uncategorized",
+        "net_spending":net_spending,
+        "gross_expenses":gross_expenses,
+        "refunds":refunds,
+        "record_count":record_count,
+        "first_recorded_at":first_recorded_at,
+        "last_recorded_at":last_recorded_at,
+    } for category_id,name,net_spending,gross_expenses,refunds,record_count,first_recorded_at,last_recorded_at in rows]
+    lifetime_totals=totals(db,base_query(user.id,currency))
+    first_any,last_any=db.execute(
+        select(func.min(Transaction.occurred_at),func.max(Transaction.occurred_at))
+        .where(Transaction.user_id==user.id,Transaction.currency==currency)
+    ).one()
+    return serialize({
+        "currency":currency,
+        "scope":"All recorded history through the current database state",
+        "first_recorded_at":first_any,
+        "last_recorded_at":last_any,
+        "totals":lifetime_totals,
+        "categories":category_rows,
+        "calculation":"Net category spending equals recorded expenses minus recorded refunds. Transfers, adjustments, goals, and projections are excluded.",
+    })
 
 @router.get("/exports/data.json")
 def data_export(user=Depends(current_user),db=Depends(get_db)):

@@ -9,11 +9,13 @@ import remarkGfm from "remark-gfm";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type AIResponse = { answer: string; remaining_this_hour: number; model: string };
+type LifetimeContext={currency:string;scope:string;first_recorded_at:string|null;last_recorded_at:string|null;totals:Record<string,string|null>;categories:Array<{category_id:string;category:string;net_spending:string;gross_expenses:string;refunds:string;record_count:number;first_recorded_at:string;last_recorded_at:string}>;calculation:string};
 
 export function PennyPilotAI({ data }: { data: Dashboard | null }) {
   const [open,setOpen]=useState(false), [thinking,setThinking]=useState(false);
   const [question,setQuestion]=useState(""), [error,setError]=useState("");
   const [remaining,setRemaining]=useState<number|null>(null);
+  const [lifetime,setLifetime]=useState<LifetimeContext|null>(null);
   const [messages,setMessages]=useState<Msg[]>([{role:"assistant",content:"I am ready. Ask about the financial period currently visible in PennyPilot."}]);
 
   const summary=useMemo(()=>data?{
@@ -27,12 +29,20 @@ export function PennyPilotAI({ data }: { data: Dashboard | null }) {
     definitions:data.definitions
   }:null,[data]);
 
+  async function ensureLifetimeContext(){
+    if(lifetime)return lifetime;
+    if(!data)return null;
+    const result=await request<LifetimeContext>(`/analytics/lifetime-context?currency=${encodeURIComponent(data.currency)}`);
+    setLifetime(result);
+    return result;
+  }
   async function ask(text?:string){
     const q=(text??question).trim(); if(!q||thinking)return;
     if(!summary){setError("Dashboard data is still loading.");return;}
     setThinking(true);setError("");setQuestion("");setMessages(m=>[...m,{role:"user",content:q}]);
     try{
-      const result=await request<AIResponse>("/ai/coach",{method:"POST",body:JSON.stringify({question:q,summary})});
+      const lifetime_context=await ensureLifetimeContext();
+      const result=await request<AIResponse>("/ai/coach",{method:"POST",body:JSON.stringify({question:q,summary:{...summary,lifetime_context}})});
       setMessages(m=>[...m,{role:"assistant",content:result.answer}]);setRemaining(result.remaining_this_hour);
     }catch(e){setError(e instanceof Error?e.message:"PennyPilot AI could not respond.");}
     finally{setThinking(false);}
@@ -43,7 +53,7 @@ export function PennyPilotAI({ data }: { data: Dashboard | null }) {
     {open&&<div className="ppai-shade"><section className="ppai-panel" role="dialog" aria-modal="true" aria-label="PennyPilot AI Coach">
       <header className="ppai-head"><div><h2><Bot size={21}/> PennyPilot AI Coach</h2><p>Fast, read-only financial explanation assistant</p></div><button type="button" className="icon" aria-label="Close AI Coach" onClick={()=>setOpen(false)}><X size={20}/></button></header>
       <div className="ppai-safe"><ShieldCheck size={17}/> Only a limited aggregated summary is sent for this response. Credentials, receipts, notes, and raw transactions are excluded.</div>
-      <div className="ppai-quick"><button type="button" onClick={()=>void ask("Summarize the selected period and comparison period.")}>Summarize</button><button type="button" onClick={()=>void ask("Which categories increased and what do the records show?")}>Spending changes</button><button type="button" onClick={()=>void ask("Which budgets need attention?")}>Budget warnings</button></div>
+      <div className="ppai-quick"><button type="button" onClick={()=>void ask("Summarize the selected period and comparison period.")}>Summarize</button><button type="button" onClick={()=>void ask("Which categories increased and what do the records show?")}>Spending changes</button><button type="button" onClick={()=>void ask("Which budgets need attention?")}>Budget warnings</button><button type="button" onClick={()=>void ask("How much have I spent on Food & groceries till date? Include the first and latest recorded dates.")}>Food spending till date</button></div>
       <div className="ppai-chat" aria-live="polite">{messages.map((m,i)=><article key={i} className={`ppai-msg ${m.role}`}><b>{m.role==="assistant"?"PennyPilot AI":"You"}</b><div className="ppai-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown></div></article>)}{thinking&&<p className="ppai-thinking"><LoaderCircle className="ppai-spin" size={16}/> Analysing recorded aggregates...</p>}</div>
       {remaining!==null&&<small className="ppai-remaining">{remaining} AI questions remaining in this application hour.</small>}
       {error&&<p className="error" role="alert">{error}</p>}
