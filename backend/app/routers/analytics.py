@@ -12,6 +12,13 @@ from ..services.ledger import base_query, totals, balances, ZERO
 from ..services.planning import budget_view, goal_view, net_worth
 router=APIRouter()
 
+def canonical_merchant(value: str) -> str:
+    """Return one case-insensitive display label for merchant analytics."""
+    cleaned=" ".join((value or "").strip().split())
+    if not cleaned:
+        return "Unspecified"
+    return cleaned.casefold().title()
+
 @router.get("/dashboard")
 @router.get("/analytics")
 def dashboard(start:date,end:date,currency:str="INR",user=Depends(current_user),db=Depends(get_db)):
@@ -30,10 +37,10 @@ def dashboard(start:date,end:date,currency:str="INR",user=Depends(current_user),
     for tx in db.scalars(stmt.order_by(Transaction.occurred_at)):
         dt=tx.occurred_at if tx.occurred_at.tzinfo else tx.occurred_at.replace(tzinfo=timezone.utc)
         local=dt.astimezone(zone); day=local.date().isoformat()
-        if tx.kind=="income": daily[day]["income"]+=tx.amount; sources[tx.merchant]+=tx.amount
+        if tx.kind=="income": daily[day]["income"]+=tx.amount; sources[canonical_merchant(tx.merchant)]+=tx.amount
         if tx.kind in ("expense","refund"):
             amount=tx.amount if tx.kind=="expense" else -tx.amount
-            daily[day]["expenses"]+=amount; category[tx.category_id]+=amount; merchant[tx.merchant]+=amount; weekdays[local.strftime("%A")]+=amount
+            daily[day]["expenses"]+=amount; category[tx.category_id]+=amount; merchant[canonical_merchant(tx.merchant)]+=amount; weekdays[local.strftime("%A")]+=amount
             category_time[(day,tx.category_id)]+=amount
     series=[]
     for day,values in sorted(daily.items()):

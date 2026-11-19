@@ -28,7 +28,7 @@ def filtered(db,user,start,end,currency,q,kind,category_id,account_id,merchant,t
     if kind: stmt=stmt.where(Transaction.kind==kind)
     if category_id: stmt=stmt.where(Transaction.category_id.is_(None) if category_id=="uncategorized" else Transaction.category_id==category_id)
     if account_id: stmt=stmt.where(or_(Transaction.account_id==account_id,Transaction.destination_id==account_id))
-    if merchant is not None: stmt=stmt.where(Transaction.merchant==merchant)
+    if merchant is not None: stmt=stmt.where(func.lower(func.trim(Transaction.merchant))==merchant.strip().lower())
     if payment_method: stmt=stmt.where(Transaction.payment_method==payment_method)
     if tag: stmt=stmt.where(Transaction.id.in_(select(TransactionTag.transaction_id).join(Tag,Tag.id==TransactionTag.tag_id).where(Tag.user_id==user.id,Tag.name==tag)))
     return stmt
