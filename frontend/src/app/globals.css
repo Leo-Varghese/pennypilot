@@ -180,3 +180,5 @@
     margin-top: -8px;
   }
 }
+/* PennyPilot bank statement import */
+.pp-bank-drop{display:flex;align-items:center;justify-content:center;gap:10px;padding:28px;margin:18px 0;border:2px dashed #b7ccc1;border-radius:12px;background:#f6faf7;color:var(--green);cursor:pointer}.pp-bank-drop input{position:absolute;opacity:0;width:1px;height:1px}.pp-bank-table{max-height:430px;overflow:auto;margin:15px 0;border:1px solid var(--line);border-radius:10px}.pp-bank-table table{min-width:900px}.pp-bank-table select{max-width:160px;padding:7px;border:1px solid var(--line);border-radius:7px;background:white}.pp-bank-muted{opacity:.56;background:#f5f5f5}

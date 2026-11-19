@@ -170,3 +170,24 @@ class ImportBatch(Owned, Base):
     count: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     __table_args__ = (UniqueConstraint("user_id", "digest"),)
+
+class BankImportBatch(Owned, Base):
+    __tablename__ = "bank_import_batches"
+    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), index=True)
+    source_bank: Mapped[str] = mapped_column(String(100))
+    file_name: Mapped[str] = mapped_column(String(255))
+    file_digest: Mapped[str] = mapped_column(String(64))
+    row_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (UniqueConstraint("user_id","account_id","file_digest",name="uq_bank_import_file"),)
+
+class BankImportItem(Owned, Base):
+    __tablename__ = "bank_import_items"
+    batch_id: Mapped[str] = mapped_column(ForeignKey("bank_import_batches.id", ondelete="CASCADE"), index=True)
+    transaction_id: Mapped[str] = mapped_column(ForeignKey("transactions.id", ondelete="CASCADE"), unique=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), index=True)
+    row_number: Mapped[int] = mapped_column(Integer)
+    original_description: Mapped[str] = mapped_column(Text)
+    bank_reference: Mapped[str] = mapped_column(String(160), default="")
+    statement_date: Mapped[date] = mapped_column(Date)
+    __table_args__ = (UniqueConstraint("user_id","fingerprint",name="uq_bank_import_fingerprint"),)
