@@ -42,7 +42,8 @@ export function PennyPilotAI({ data }: { data: Dashboard | null }) {
     setThinking(true);setError("");setQuestion("");setMessages(m=>[...m,{role:"user",content:q}]);
     try{
       const lifetime_context=await ensureLifetimeContext();
-      const result=await request<AIResponse>("/ai/coach",{method:"POST",body:JSON.stringify({question:q,summary:{...summary,lifetime_context}})});
+      const history=messages.slice(-6).map(({role,content})=>({role,content}));
+      const result=await request<AIResponse>("/ai/coach",{method:"POST",body:JSON.stringify({question:q,summary:{...summary,lifetime_context},history})});
       setMessages(m=>[...m,{role:"assistant",content:result.answer}]);setRemaining(result.remaining_this_hour);
     }catch(e){setError(e instanceof Error?e.message:"PennyPilot AI could not respond.");}
     finally{setThinking(false);}

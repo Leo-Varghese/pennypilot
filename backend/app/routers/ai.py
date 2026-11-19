@@ -29,7 +29,8 @@ Do not give personalized investment, tax, legal, lending, or credit instructions
 Mention the supplied comparison period when discussing changes.
 Transfers, adjustments, goal allocations, and projected bills are not expenses.
 Keep the answer concise, practical, and in Indian English. Say explicitly when the supplied data is insufficient.
-When the question says till date, all time, ever, or from the beginning, use only lifetime_context. State its first_recorded_at and last_recorded_at coverage. Never substitute the selected-period figures."""
+When the question says till date, all time, ever, or from the beginning, use only lifetime_context. State its first_recorded_at and last_recorded_at coverage. Never substitute the selected-period figures.
+Conversation context rules: resolve short follow-ups such as without refunds, gross amount, same category, or what about last month from the immediately preceding user request and answer. For without refunds, report gross_expenses, not net_spending. Never switch from lifetime_context to the selected period unless the user explicitly asks. If lifetime totals appear surprising, explain that net spending subtracts refunds and show gross expenses, refunds, and net spending separately."""
 
 BLOCKED_KEYS = {
     "email", "password", "password_hash", "token", "access_token", "authorization",
@@ -37,10 +38,16 @@ BLOCKED_KEYS = {
     "description", "location", "transaction_id", "user_id"
 }
 
+class AIHistoryMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=1200)
+
 class AIRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     question: str = Field(min_length=1, max_length=MAX_QUESTION_CHARS)
     summary: dict[str, Any]
+    history: list[AIHistoryMessage] = Field(default_factory=list, max_length=6)
 
 
 def _validate_summary(value: Any, path: str = "summary") -> None:
@@ -88,7 +95,9 @@ async def ai_coach(data: AIRequest, user=Depends(current_user)):
         "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Aggregated PennyPilot summary:\n{encoded}\n\nQuestion: {data.question}"},
+            {"role": "user", "content": f"Aggregated PennyPilot summary:\n{encoded}"},
+            *[{"role": item.role, "content": item.content} for item in data.history[-6:]],
+            {"role": "user", "content": data.question},
         ],
         "temperature": 0.2,
         "max_completion_tokens": 800,
