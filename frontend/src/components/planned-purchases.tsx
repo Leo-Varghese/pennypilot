@@ -69,7 +69,7 @@ export function PlannedPurchases({accounts,categories,currency}:{accounts:Accoun
  }
  function showStatusToast(message:string){
    setToast(message);
-   window.setTimeout(()=>setToast(""),6500);
+   window.setTimeout(()=>setToast(""),8000);
  }
  async function save(){
    if(!editor)return;
@@ -85,12 +85,11 @@ export function PlannedPurchases({accounts,categories,currency}:{accounts:Accoun
    if(!confirm(`Undo the purchase of "${item.name}"? The linked expense transaction will be deleted and the item will return to Planned.`))return;
    setBusy(true);setError("");
    try{
-     await request(`/planned-purchases/${item.id}/undo-purchase`,{method:"POST"});
-     await load();
+     await request(`/planned-purchases/${item.id}/undo-purchase`,{method:"POST"});showStatusToast("Purchase undone and the linked transaction removed. Please allow 30 to 40 seconds for free cloud services and refreshed views to show the update.");await load();
    }catch(e){setError((e as Error).message);}
    finally{setBusy(false);}
  }
- async function purchase(form:HTMLFormElement){if(!buying)return;const data=new FormData(form);setBusy(true);setError("");try{await request(`/planned-purchases/${buying.id}/purchase`,{method:"POST",body:JSON.stringify({account_id:data.get("account_id"),purchased_on:data.get("purchased_on"),payment_method:data.get("payment_method"),actual_amount:data.get("actual_amount")||null})});setBuying(null);showStatusToast("Purchase saved and added to Transactions. Please allow 10 to 20 seconds for free cloud services and refreshed views to show the update.");await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+ async function purchase(form:HTMLFormElement){if(!buying)return;const data=new FormData(form);setBusy(true);setError("");try{await request(`/planned-purchases/${buying.id}/purchase`,{method:"POST",body:JSON.stringify({account_id:data.get("account_id"),purchased_on:data.get("purchased_on"),payment_method:data.get("payment_method"),actual_amount:data.get("actual_amount")||null})});setBuying(null);showStatusToast("Purchase saved and added to Transactions. Please allow 30 to 40 seconds for free cloud services and refreshed views to show the update.");await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  const total=items.filter(x=>x.status==="planned").reduce((sum,x)=>sum+Number(x.planned_amount),0);
 
  return <>{toast&&<div className="pp-status-toast" role="status" aria-live="polite">{toast}</div>}
