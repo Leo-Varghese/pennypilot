@@ -17,6 +17,11 @@ from ..services.ledger import owned, save_transaction
 router = APIRouter()
 
 
+def merchant_identity(value: str) -> str:
+    text = re.sub(r"[_\-]+", " ", value or "")
+    return re.sub(r"\s+", " ", text).strip().casefold()
+
+
 def merchant_key(value: str) -> str:
     """Normalise merchant identity without changing the stored display text."""
     text = re.sub(r"[_\-]+", " ", value or "")
