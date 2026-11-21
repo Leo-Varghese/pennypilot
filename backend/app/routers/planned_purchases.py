@@ -4,10 +4,10 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from ..db import get_db
-from ..models import Account, Category, PlannedPurchase, Preference
+from ..models import Account, Category, PlannedPurchase, Preference, Transaction, Transaction, Transaction
 from ..schemas import TransactionIn
 from ..security import current_user
 from ..serialization import serialize
@@ -40,6 +40,80 @@ def validate_related(db, data: PlannedPurchaseIn, user_id: str):
     if data.category_id:
         owned(db, Category, data.category_id, user_id)
 
+
+@router.get("/planned-purchases/suggestions")
+def planned_purchase_suggestions(
+    q: str = "",
+    limit: int = Query(6, ge=1, le=8),
+    user=Depends(current_user),
+    db=Depends(get_db),
+):
+    """Suggest item and merchant details from this user's own history."""
+    term = " ".join(q.strip().split())
+    if len(term) < 2:
+        return {"items": []}
+    pattern = "%" + term.replace("%", "\\%").replace("_", "\\_") + "%"
+
+    planned = db.scalars(
+        select(PlannedPurchase)
+        .where(
+            PlannedPurchase.user_id == user.id,
+            or_(
+                PlannedPurchase.name.ilike(pattern, escape="\\"),
+                PlannedPurchase.merchant.ilike(pattern, escape="\\"),
+            ),
+        )
+        .order_by(PlannedPurchase.updated_at.desc())
+        .limit(50)
+    ).all()
+
+    transactions = db.scalars(
+        select(Transaction)
+        .where(
+            Transaction.user_id == user.id,
+            Transaction.kind != "transfer",
+            Transaction.merchant.ilike(pattern, escape="\\"),
+        )
+        .order_by(Transaction.occurred_at.desc())
+        .limit(50)
+    ).all()
+
+    output = []
+    seen = set()
+    for row in planned:
+        key = (row.name.strip().casefold(), row.merchant.strip().casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        output.append({
+            "name": row.name,
+            "merchant": row.merchant,
+            "category_id": row.category_id,
+            "planned_amount": row.planned_amount,
+            "priority": row.priority,
+            "source": "planned purchase history",
+        })
+
+    for row in transactions:
+        item_name = row.purpose.removeprefix("Planned purchase: ").strip() if row.purpose else row.merchant.strip()
+        key = (item_name.casefold(), row.merchant.strip().casefold())
+        if not item_name or key in seen:
+            continue
+        seen.add(key)
+        output.append({
+            "name": item_name,
+            "merchant": row.merchant,
+            "category_id": row.category_id,
+            "planned_amount": row.amount,
+            "priority": 2,
+            "source": "transaction history",
+        })
+
+    output.sort(key=lambda item: (
+        0 if item["name"].casefold().startswith(term.casefold()) else 1,
+        item["name"].casefold(),
+    ))
+    return {"items": serialize(output[:limit])}
 
 @router.get("/planned-purchases")
 def list_planned_purchases(
