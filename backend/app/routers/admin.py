@@ -1,29 +1,70 @@
+import base64
+import hashlib
+import hmac
+import json
 import os
+import time
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
 from ..db import get_db
 from ..models import Account, Transaction, User
-from ..security import current_user
 
 router = APIRouter()
+_hasher = PasswordHasher()
+_SESSION_SECONDS = 20 * 60
 
 
-def admin_emails() -> set[str]:
-    return {
-        value.strip().casefold()
-        for value in os.getenv("ADMIN_EMAILS", "").split(",")
-        if value.strip()
-    }
+class AdminLogin(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    username: str = Field(min_length=3, max_length=80)
+    password: str = Field(min_length=12, max_length=200)
 
 
-def require_admin(user=Depends(current_user)):
-    email = (getattr(user, "email", "") or "").strip().casefold()
-    if not email or email not in admin_emails():
-        raise HTTPException(403, "Administrator access required")
-    return user
+def _settings():
+    username = os.getenv("ADMIN_USERNAME", "").strip()
+    password_hash = os.getenv("ADMIN_PASSWORD_HASH", "").strip()
+    secret = os.getenv("ADMIN_SESSION_SECRET", "").strip()
+    if not username or not password_hash or len(secret) < 32:
+        raise HTTPException(503, "Administrator login is not configured")
+    return username, password_hash, secret
+
+
+def _encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def _decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def _issue_token(username: str, secret: str) -> str:
+    payload = {"sub": username, "exp": int(time.time()) + _SESSION_SECONDS}
+    body = _encode(json.dumps(payload, separators=(",", ":")).encode())
+    signature = _encode(hmac.new(secret.encode(), body.encode(), hashlib.sha256).digest())
+    return f"{body}.{signature}"
+
+
+def require_private_admin(x_admin_token: str | None = Header(default=None)):
+    username, _, secret = _settings()
+    if not x_admin_token or "." not in x_admin_token:
+        raise HTTPException(401, "Administrator login required")
+    body, signature = x_admin_token.split(".", 1)
+    expected = _encode(hmac.new(secret.encode(), body.encode(), hashlib.sha256).digest())
+    if not hmac.compare_digest(signature, expected):
+        raise HTTPException(401, "Invalid administrator session")
+    try:
+        payload = json.loads(_decode(body))
+    except Exception as exc:
+        raise HTTPException(401, "Invalid administrator session") from exc
+    if payload.get("sub") != username or int(payload.get("exp", 0)) <= int(time.time()):
+        raise HTTPException(401, "Administrator session expired")
+    return username
 
 
 def mask_email(value: str) -> str:
@@ -34,47 +75,40 @@ def mask_email(value: str) -> str:
     return f"{visible}{'*' * max(3, len(local) - len(visible))}@{domain}"
 
 
+@router.post("/admin/login")
+def admin_login(data: AdminLogin):
+    username, password_hash, secret = _settings()
+    username_ok = hmac.compare_digest(data.username.strip().casefold(), username.casefold())
+    try:
+        password_ok = _hasher.verify(password_hash, data.password)
+    except VerifyMismatchError:
+        password_ok = False
+    except Exception:
+        password_ok = False
+    if not username_ok or not password_ok:
+        time.sleep(0.6)
+        raise HTTPException(401, "Invalid administrator credentials")
+    return {"token": _issue_token(username, secret), "expires_in_seconds": _SESSION_SECONDS}
+
+
 @router.get("/admin/overview")
-def admin_overview(admin=Depends(require_admin), db=Depends(get_db)):
+def admin_overview(admin=Depends(require_private_admin), db=Depends(get_db)):
     now = datetime.now(timezone.utc)
     seven_days_ago = now - timedelta(days=7)
-
-    user_count = db.scalar(select(func.count()).select_from(User)) or 0
-    transaction_count = db.scalar(select(func.count()).select_from(Transaction)) or 0
-    account_count = db.scalar(select(func.count()).select_from(Account)) or 0
-
-    recent_users = db.scalars(
-        select(User).order_by(User.created_at.desc()).limit(50)
-    ).all()
-    registrations_last_7_days = sum(
-        1 for user in recent_users
-        if getattr(user, "created_at", None)
-        and user.created_at >= seven_days_ago
-    )
-
+    recent_users = db.scalars(select(User).order_by(User.created_at.desc()).limit(50)).all()
     return {
         "metrics": {
-            "users": user_count,
-            "transactions": transaction_count,
-            "accounts": account_count,
-            "registrations_last_7_days": registrations_last_7_days,
+            "users": db.scalar(select(func.count()).select_from(User)) or 0,
+            "transactions": db.scalar(select(func.count()).select_from(Transaction)) or 0,
+            "accounts": db.scalar(select(func.count()).select_from(Account)) or 0,
+            "registrations_last_7_days": sum(
+                1 for user in recent_users
+                if getattr(user, "created_at", None) and user.created_at >= seven_days_ago
+            ),
         },
         "users": [
-            {
-                "id": user.id,
-                "masked_email": mask_email(user.email),
-                "created_at": getattr(user, "created_at", None),
-            }
+            {"id": user.id, "masked_email": mask_email(user.email), "created_at": user.created_at}
             for user in recent_users
         ],
-        "privacy": {
-            "financial_records_visible": False,
-            "emails_masked": True,
-            "admin_source": "ADMIN_EMAILS server environment variable",
-        },
+        "privacy": {"financial_records_visible": False, "emails_masked": True},
     }
-
-
-@router.get("/admin/me")
-def admin_me(admin=Depends(require_admin)):
-    return {"is_admin": True, "email": mask_email(admin.email)}
