@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime, time
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -14,6 +15,13 @@ from ..serialization import serialize
 from ..services.ledger import owned, save_transaction
 
 router = APIRouter()
+
+
+def merchant_key(value: str) -> str:
+    """Normalise merchant identity without changing the stored display text."""
+    text = re.sub(r"[_\-]+", " ", value or "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text.casefold()
 
 
 class PlannedPurchaseIn(BaseModel):
@@ -81,7 +89,7 @@ def planned_purchase_suggestions(
     output = []
     seen = set()
     for row in planned:
-        key = (row.name.strip().casefold(), row.merchant.strip().casefold())
+        key = (row.name.strip().casefold(), merchant_key(row.merchant))
         if key in seen:
             continue
         seen.add(key)
@@ -96,7 +104,7 @@ def planned_purchase_suggestions(
 
     for row in transactions:
         item_name = row.purpose.removeprefix("Planned purchase: ").strip() if row.purpose else row.merchant.strip()
-        key = (item_name.casefold(), row.merchant.strip().casefold())
+        key = (item_name.casefold(), merchant_key(row.merchant))
         if not item_name or key in seen:
             continue
         seen.add(key)
@@ -110,7 +118,7 @@ def planned_purchase_suggestions(
         })
 
     output.sort(key=lambda item: (
-        0 if item["name"].casefold().startswith(term.casefold()) else 1,
+        0 if item["name"].casefold().startswith(merchant_key(term)) else 1,
         item["name"].casefold(),
     ))
     return {"items": serialize(output[:limit])}
@@ -176,6 +184,28 @@ def cancel_planned_purchase(purchase_id: str, user=Depends(current_user), db=Dep
     db.commit()
     return serialize(row)
 
+
+@router.post("/planned-purchases/{purchase_id}/undo-purchase")
+def undo_planned_purchase(purchase_id: str, user=Depends(current_user), db=Depends(get_db)):
+    row = owned(db, PlannedPurchase, purchase_id, user.id, True)
+    if row.status != "purchased" or not row.transaction_id:
+        raise HTTPException(409, "This item is not linked to a completed purchase")
+
+    transaction = db.scalar(
+        select(Transaction).where(
+            Transaction.id == row.transaction_id,
+            Transaction.user_id == user.id,
+        )
+    )
+    if transaction is None:
+        raise HTTPException(409, "The linked transaction no longer exists")
+
+    linked_transaction_id = transaction.id
+    db.delete(transaction)
+    row.status = "planned"
+    row.transaction_id = None
+    db.commit()
+    return {"planned_purchase": serialize(row), "removed_transaction_id": linked_transaction_id}
 
 @router.post("/planned-purchases/{purchase_id}/purchase")
 def purchase_planned_item(purchase_id: str, data: PurchaseIn, user=Depends(current_user), db=Depends(get_db)):
