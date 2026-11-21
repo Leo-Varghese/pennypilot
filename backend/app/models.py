@@ -191,3 +191,23 @@ class BankImportItem(Owned, Base):
     bank_reference: Mapped[str] = mapped_column(String(160), default="")
     statement_date: Mapped[date] = mapped_column(Date)
     __table_args__ = (UniqueConstraint("user_id","fingerprint",name="uq_bank_import_fingerprint"),)
+class PlannedPurchase(Owned, Base):
+    __tablename__ = "planned_purchases"
+    name: Mapped[str] = mapped_column(String(120))
+    planned_amount: Mapped[Decimal] = mapped_column(Numeric(20, 2))
+    currency: Mapped[str] = mapped_column(String(3), default="INR")
+    category_id: Mapped[str | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), index=True)
+    merchant: Mapped[str] = mapped_column(String(160), default="")
+    priority: Mapped[int] = mapped_column(Integer, default=2)
+    target_date: Mapped[date | None] = mapped_column(Date)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="planned", index=True)
+    transaction_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.id", ondelete="SET NULL"), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+    __table_args__ = (
+        CheckConstraint("planned_amount > 0", name="positive_planned_purchase_amount"),
+        CheckConstraint("priority BETWEEN 1 AND 3", name="planned_purchase_priority"),
+        CheckConstraint("status IN ('planned','purchased','cancelled')", name="planned_purchase_status"),
+        Index("ix_planned_purchase_owner_status", "user_id", "status"),
+    )
