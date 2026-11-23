@@ -22,5 +22,5 @@ export function MobileAppSupport(){
  },[]);
  async function install(){if(!event){window.location.href="/install";return;}await event.prompt();const choice=await event.userChoice;if(choice.outcome==="accepted")setInstalled(true);setEvent(null);}
  if(installed&&!updated)return null;
- return <>{!installed&&<button type="button" className="mobile-install-button" onClick={()=>void install()}>Install mobile app</button>}{updated&&<button type="button" className="mobile-update-banner" onClick={()=>window.location.reload()}>A PennyPilot update is ready. Tap to refresh.</button>}</>;
+ return <>{!installed&&<button type="button" className="mobile-install-button" onClick={()=>void install()}>Install PennyPilot app</button>}{updated&&<button type="button" className="mobile-update-banner" onClick={()=>window.location.reload()}>A PennyPilot update is ready. Tap to refresh.</button>}</>;
 }
