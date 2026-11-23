@@ -10,13 +10,14 @@ export default function manifest():MetadataRoute.Manifest{
   scope:"/",
   display:"standalone",
   orientation:"any",
-  background_color:"#f3f7f4",
+  background_color:"#ffffff",
   theme_color:"#0f806b",
   categories:["finance","productivity"],
   prefer_related_applications:false,
   icons:[
-   {src:"/pennypilot-app-icon.svg",sizes:"192x192",type:"image/svg+xml",purpose:"any"},
-   {src:"/pennypilot-app-icon.svg",sizes:"512x512",type:"image/svg+xml",purpose:"maskable"},
+   {src:"/icons/pennypilot-192.png",sizes:"192x192",type:"image/png",purpose:"any"},
+   {src:"/icons/pennypilot-512.png",sizes:"512x512",type:"image/png",purpose:"any"},
+   {src:"/icons/pennypilot-512.png",sizes:"512x512",type:"image/png",purpose:"maskable"},
   ],
  };
 }

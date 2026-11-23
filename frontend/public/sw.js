@@ -1,5 +1,5 @@
-const CACHE="pennypilot-shell-v1";
-const STATIC=["/","/install","/pennypilot-app-icon.svg"];
+const CACHE="pennypilot-shell-v2";
+const STATIC=["/","/install","/icons/pennypilot-192.png","/icons/pennypilot-512.png"];
 self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting()));});
 self.addEventListener("activate",event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
 self.addEventListener("fetch",event=>{
@@ -12,7 +12,7 @@ self.addEventListener("fetch",event=>{
   event.respondWith(fetch(request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(request,copy));return response;}).catch(()=>caches.match(request).then(hit=>hit||caches.match("/"))));
   return;
  }
- if(url.pathname.startsWith("/_next/static/")||url.pathname==="/pennypilot-app-icon.svg"){
+ if(url.pathname.startsWith("/_next/static/")||url.pathname==="/icons/pennypilot-192.png"){
   event.respondWith(caches.match(request).then(hit=>hit||fetch(request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(request,copy));return response;})));
  }
 });
