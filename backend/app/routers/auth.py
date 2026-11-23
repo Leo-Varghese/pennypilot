@@ -55,3 +55,107 @@ def delete_me(data:Credentials,user=Depends(current_user),db=Depends(get_db)):
     db.execute(delete(Budget).where(Budget.user_id==user.id))
     db.execute(update(Category).where(Category.user_id==user.id).values(parent_id=None))
     db.delete(user); db.commit()
+
+# Password recovery uses a neutral response to avoid revealing registered emails.
+import hashlib
+import os
+import secrets
+from datetime import datetime, timedelta, timezone
+import httpx
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+class ForgotPasswordIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: EmailStr
+
+class ResetPasswordIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    token: str = Field(min_length=32, max_length=300)
+    password: str = Field(min_length=12, max_length=128)
+
+
+def reset_digest(value: str) -> str:
+    secret = os.getenv("PASSWORD_RESET_SECRET", "").strip()
+    if len(secret) < 32:
+        raise HTTPException(503, "Password reset is temporarily unavailable")
+    return hashlib.sha256((secret + value).encode()).hexdigest()
+
+
+def send_reset_email(recipient: str, link: str):
+    key = os.getenv("BREVO_API_KEY", "").strip()
+    sender_value = os.getenv("EMAIL_FROM", "").strip()
+    if not key or not sender_value:
+        raise RuntimeError("Email delivery is not configured")
+    if "<" in sender_value and sender_value.endswith(">"):
+        sender_name, sender_email = sender_value.rsplit("<", 1)
+        sender = {"name": sender_name.strip(), "email": sender_email[:-1].strip()}
+    else:
+        sender = {"name": "PennyPilot", "email": sender_value}
+    payload = {
+        "sender": sender,
+        "to": [{"email": recipient}],
+        "subject": "Reset your PennyPilot password",
+        "htmlContent": f"""<p>A password reset was requested for your PennyPilot account.</p>
+<p><a href=\"{link}\">Reset your password</a></p>
+<p>This link expires in 30 minutes and can be used once.</p>
+<p>If you did not request this, you can ignore this email.</p>""",
+    }
+    response = httpx.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={"api-key": key, "Content-Type": "application/json", "Accept": "application/json"},
+        json=payload,
+        timeout=20.0,
+    )
+    response.raise_for_status()
+
+
+@router.post("/auth/forgot-password")
+def forgot_password(data: ForgotPasswordIn, request: Request, db=Depends(get_db)):
+    email = str(data.email).strip().lower()
+    throttle(db, "forgot-email:" + email)
+    throttle(db, "forgot-ip:" + (request.client.host if request.client else "unknown"))
+    user = db.scalar(select(User).where(User.email == email))
+    message = "If an account exists for that email, PennyPilot has sent password-reset instructions."
+    if not user:
+        return {"message": message}
+
+    now = datetime.now(timezone.utc)
+    db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user.id))
+    raw_token = secrets.token_urlsafe(48)
+    db.add(PasswordResetToken(
+        user_id=user.id,
+        token_hash=reset_digest(raw_token),
+        expires_at=now + timedelta(minutes=30),
+    ))
+    db.commit()
+
+    frontend = os.getenv("FRONTEND_ORIGIN", "").strip() or os.getenv("FRONTEND_ORIGINS", "").split(",")[0].strip()
+    if not frontend:
+        raise HTTPException(503, "Password reset is temporarily unavailable")
+    try:
+        send_reset_email(email, frontend.rstrip("/") + "/reset-password?token=" + raw_token)
+    except Exception:
+        # Do not expose provider or account details to the requester.
+        raise HTTPException(503, "Password reset email could not be sent. Please try again later.")
+    return {"message": message}
+
+
+@router.post("/auth/reset-password")
+def reset_password(data: ResetPasswordIn, request: Request, db=Depends(get_db)):
+    throttle(db, "reset-ip:" + (request.client.host if request.client else "unknown"))
+    now = datetime.now(timezone.utc)
+    row = db.scalar(select(PasswordResetToken).where(
+        PasswordResetToken.token_hash == reset_digest(data.token),
+        PasswordResetToken.used_at.is_(None),
+        PasswordResetToken.expires_at > now,
+    ))
+    if not row:
+        raise HTTPException(400, "This password-reset link is invalid or expired")
+    user = db.get(User, row.user_id)
+    if not user:
+        raise HTTPException(400, "This password-reset link is invalid or expired")
+    user.password_hash = passwords.hash(data.password)
+    row.used_at = now
+    db.execute(delete(Session).where(Session.user_id == user.id))
+    db.commit()
+    return {"message": "Password updated. Sign in with your new password."}
